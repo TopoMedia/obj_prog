@@ -184,7 +184,7 @@ SADRZAJ
                                                  mijenja original!)
 
   NIKAD ne vracaj referencu ili pokazivac na LOKALNU varijablu funkcije -
-  ona nestaje na kraju funkcije (visеca referenca -> nedefinirano ponasanje).
+  ona nestaje na kraju funkcije (viseca referenca -> nedefinirano ponasanje).
 
 
 ---------------------------------------------------------------------
