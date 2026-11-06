@@ -1,0 +1,610 @@
+=====================================================================
+   PITANJA "STO AKO DODAMO / OBRISEMO..." - ZADATAK 1 i ZADATAK 2
+   (svaki slucaj je isproban: promijenjen kod, kompajliran i pokrenut)
+=====================================================================
+
+Moguci ishodi:
+  [NE KOMPAJLIRA]  - kompajler javi gresku (error)
+  [RADI]           - radi isto kao prije
+  [RADI DRUKCIJE]  - radi, ali je drugaciji ispis/ponasanje
+  [RUSI SE / UB]   - kompajlira se, ali program pukne ili je
+                     nedefinirano ponasanje (UB = undefined behavior)
+
+
+#####################################################################
+                        ZADATAK 1 - KNJIZNICA
+#####################################################################
+
+---------------------------------------------------------------------
+A) ENKAPSULACIJA - public / private
+---------------------------------------------------------------------
+
+P1: Sto ako u klasi Knjiznica promijenimo private u public?
+
+    ORIGINAL:                          PROMJENA:
+    private:                           public:
+        string naziv;                      string naziv;
+
+    U main:   k.naziv = "mala knjiznica";
+
+  O: [RADI] - ali sad korisnik moze direktno postaviti naziv malim
+     slovom i ZAOBICI provjeru u setteru. Gubi se enkapsulacija.
+     S private bi ovaj red javio gresku:
+     "'std::string Knjiznica::naziv' is private within this context"
+
+P2: Sto ako iz klase Knjiznica obrisemo red "private:"?
+
+  O: [RADI] - nista se ne mijenja. U class je sve po defaultu private.
+
+P3: Sto ako iz klase Knjiga obrisemo red "public:"?
+
+    class Knjiga {
+        string autor;            // sad je private
+        ...
+        Knjiga(string _autor, ...)   // i KONSTRUKTOR je sad private!
+
+  O: [NE KOMPAJLIRA] - u main red  Knjiga a("Ivo Andric", ...);  javi
+     gresku jer je konstruktor private. Isto i  knjige[i].isbn  u
+     Knjiznici. (Da je "struct Knjiga", sve bi bilo public i radilo bi.)
+
+P4: Sto ako u main pokusamo procitati naziv bez gettera?
+
+    cout << k.naziv;
+
+  O: [NE KOMPAJLIRA] - naziv je private. Mora se koristiti k.getNaziv().
+
+---------------------------------------------------------------------
+B) KONSTRUKTOR, SETTERI, PROVJERE
+---------------------------------------------------------------------
+
+P5: Sto ako konstruktor Knjiznica postavlja polja direktno?
+
+    ORIGINAL:                          PROMJENA:
+    Knjiznica(...) {                   Knjiznica(...) {
+        setAdresa(_adresa);                adresa = _adresa;
+        setNaziv(_naziv);                  naziv = _naziv;
+        setKategorija(_kategorija);        kategorija = _kategorija;
+    }                                  }
+
+    U main:   Knjiznica x("Ilica 1", "mala", "strip");
+
+  O: [RADI DRUKCIJE] - objekt se stvori s NEISPRAVNIM podacima
+     ("mala", "strip"), nema poruke o gresci. Zato konstruktor poziva
+     settere - provjere su na jednom mjestu i vrijede uvijek.
+
+P6: Sto ako stvorimo knjiznicu s neispravnim podacima (originalni kod)?
+
+    Knjiznica x("Ilica 1", "mala", "strip");
+    cout << x.getNaziv() << "," << x.getKategorija();
+
+  O: [RADI] - ispisu se dvije poruke o gresci, a naziv i kategorija
+     ostanu PRAZNI stringovi (setteri ih nisu postavili).
+
+P7: Sto ako iz setNaziv obrisemo  _naziv.length() > 0 &&  ?
+
+    if (isupper(_naziv[0])) { ... }
+    U main:  k.setNaziv("");
+
+  O: [RADI] - za std::string slucajno radi: s[0] praznog stringa vraca
+     znak '\0', isupper('\0') je false i ispise se greska. Ipak je
+     provjera dobra navika (za obicna polja/vector to NE bi bilo sigurno).
+
+P8: Sto ako u setKategorija umjesto || napisemo && ?
+
+    if (_kategorija == "djecja" && _kategorija == "znanstvena" && ...)
+
+  O: [RADI DRUKCIJE] - uvjet NIKAD nije istinit (string ne moze
+     istovremeno biti i "djecja" i "znanstvena"), pa se svaka kategorija
+     odbije i uvijek se ispisuje greska.
+
+P9: Sto ako u setNaziv umjesto isupper koristimo rucnu provjeru?
+
+    if (_naziv.length() > 0 && _naziv[0] >= 'A' && _naziv[0] <= 'Z')
+
+  O: [RADI] - isto ponasanje za engleska slova. Tada ne treba <cctype>.
+
+P10: Sto ako u klasi Knjiga pokusamo napraviti objekt bez parametara?
+
+    Knjiga x;
+
+  O: [NE KOMPAJLIRA] - Knjiga ima samo konstruktor s 3 parametra. Cim
+     napisemo bilo koji konstruktor, kompajler vise ne generira prazni.
+
+P11: Sto ako dodamo konstruktor bez parametara?
+
+    Knjiga() {
+        cout << "Knjiga constructor called" << endl;
+    }
+
+  O: [RADI] - sad  Knjiga x;  radi. (Ali zadatak trazi SAMO JEDAN
+     konstruktor, pa to u zadatku ne smijemo.)
+
+P12: Sto ako konstruktor Knjiga ne koristi inicijalizacijsku listu?
+
+    Knjiga(string _autor, string _naslov, string _isbn) {
+        autor = _autor;  naslov = _naslov;  isbn = _isbn;
+        cout << "Knjiga constructor called" << endl;
+    }
+
+  O: [RADI] - isti rezultat. Razlika: polja se prvo stvore prazna pa se
+     prepisu. Lista je obavezna za const polja i reference.
+
+P13: Sto ako zaboravimo ; iza } klase?
+
+    class Knjiga { ... }      <- nema ;
+
+  O: [NE KOMPAJLIRA] - "expected ';' after class definition".
+
+---------------------------------------------------------------------
+C) DESTRUKTOR I BROJ ISPISA
+---------------------------------------------------------------------
+
+P14: Sto se ispisuje kod dodajKnjigu1/2/3 (originalni kod)?
+
+    === dodajKnjigu1 (po vrijednosti) ===
+    Knjiga destructor called          <- unistava se lokalna kopija z
+    === dodajKnjigu2 (po referenci) ===
+    Knjiga destructor called          <- vector se prosirio (1 -> 2)
+    === dodajKnjigu3 (pokazivacem) ===
+    Knjiga destructor called          <- vector se prosirio (2 -> 4)
+    Knjiga destructor called             i unistio 2 stare kopije
+
+  O: "constructor called" se NE ispisuje jer kopije radi konstruktor
+     kopiranja koji generira kompajler (on ne ispisuje nista).
+
+P15: Sto ako u konstruktor Knjiznica dodamo  knjige.reserve(10); ?
+
+    Knjiznica(...) {
+        knjige.reserve(10);
+        setAdresa(_adresa); ...
+    }
+
+  O: [RADI DRUKCIJE] - kod dodajKnjigu2 i dodajKnjigu3 vise se NE
+     ispisuje destruktor (vector ima mjesta, ne premjesta knjige).
+     Kod dodajKnjigu1 i dalje se ispise 1 destruktor (lokalna kopija z).
+
+P16: Sto ako u Knjiga dodamo vlastiti konstruktor kopiranja?
+
+    Knjiga(const Knjiga& druga)
+        : autor(druga.autor), naslov(druga.naslov), isbn(druga.isbn) {
+        cout << "Knjiga COPY constructor called" << endl;
+    }
+
+  O: [RADI DRUKCIJE] - sad se vidi svaka kopija i broj konstruktora
+     (obicni + copy) jednak je broju destruktora. Kod dodajKnjigu1 se
+     ispisu 2 kopije (parametar z + push_back).
+     (Ali zadatak trazi samo jedan konstruktor.)
+
+P17: Sto ako obrisemo destruktor iz Knjiga?
+
+  O: [RADI] - nema ispisa "destructor called". Objekti se i dalje
+     unistavaju (kompajler generira prazni destruktor). Nema curenja
+     memorije jer Knjiga nema new.
+
+P18: Kojim redom se unistavaju objekti na kraju main?
+
+  O: Obrnuto od stvaranja: kopija, pa c, b, a, pa knjiznica k
+     (a s njom i vector sa 3 knjige).
+
+---------------------------------------------------------------------
+D) PRIJENOS PARAMETARA - dodajKnjigu1/2/3
+---------------------------------------------------------------------
+
+P19: Sto ako obrisemo & iz dodajKnjigu2?
+
+    ORIGINAL:  void dodajKnjigu2(Knjiga& z)
+    PROMJENA:  void dodajKnjigu2(Knjiga z)
+
+  O: [RADI DRUKCIJE] - postane isto sto i dodajKnjigu1: stvara se kopija
+     u parametru i ispise se jedan destruktor vise.
+
+P20: Sto ako pozovemo dodajKnjigu3 bez &?
+
+    ORIGINAL:  k.dodajKnjigu3(&c);
+    PROMJENA:  k.dodajKnjigu3(c);
+
+  O: [NE KOMPAJLIRA] - "cannot convert 'Knjiga' to 'Knjiga*'".
+     Funkcija trazi ADRESU, a & daje adresu.
+
+P21: Sto ako u dodajKnjigu3 zaboravimo zvjezdicu?
+
+    knjige.push_back(z);     // z je Knjiga*, a ne Knjiga
+
+  O: [NE KOMPAJLIRA] - vector<Knjiga> prima Knjiga, a z je pokazivac.
+     *z dohvaca objekt na adresi.
+
+P22: Sto ako dodajKnjigu2 pozovemo s privremenim objektom?
+
+    k.dodajKnjigu2(Knjiga("x", "y", "z"));
+
+  O: [NE KOMPAJLIRA] - "cannot bind non-const lvalue reference of type
+     'Knjiga&' to an rvalue". Obicna referenca ne moze se vezati na
+     privremeni objekt.
+
+P23: A ako parametar promijenimo u const Knjiga&?
+
+    void dodajKnjigu2(const Knjiga& z) { knjige.push_back(z); }
+    k.dodajKnjigu2(Knjiga("x", "y", "z"));
+
+  O: [RADI] - const referenca se smije vezati na privremeni objekt.
+     push_back svejedno napravi kopiju u vectoru.
+
+P24: Sto ako u funkciji s const parametrom pokusamo mijenjati objekt?
+
+    void dodajKnjigu2(const Knjiga& z) {
+        z.naslov = "novi";
+        knjige.push_back(z);
+    }
+
+  O: [NE KOMPAJLIRA] - z je const, pa je i z.naslov const string i ne
+     moze mu se pridruziti nova vrijednost (kompajler javi "no match for
+     'operator=' (operand types are 'const std::string' ...").
+
+P25: Sto ako u dodajKnjigu1 promijenimo z?
+
+    void dodajKnjigu1(Knjiga z) {
+        z.naslov = "PROMIJENJENO";
+        knjige.push_back(z);
+    }
+
+  O: [RADI] - u vectoru je knjiga "PROMIJENJENO", ali ORIGINAL a u main
+     ostaje isti (z je kopija).
+
+P26: A ako isto napravimo u dodajKnjigu2 (Knjiga& z)?
+
+  O: [RADI DRUKCIJE] - promijeni se i ORIGINAL b u main (z je drugo ime
+     za b).
+
+P27: Sto ako pozovemo dodajKnjigu3(nullptr)?
+
+  O: [RUSI SE] - *z dereferencira nullptr. Zato kod pokazivaca treba
+     provjera  if (z != nullptr).
+
+---------------------------------------------------------------------
+E) VRACANJE IZ FUNKCIJE - nadjiKnjigu1/2/3
+---------------------------------------------------------------------
+
+P28: Sto se vidi u ispisu nakon izmjena (originalni kod)?
+
+    Ivo Andric - Na Drini cuprija (ISBN: 111)           <- NIJE promijenjeno
+    Miroslav Krleza - IZMIJENJENO 2 (ISBN: 222)         <- promijenjeno
+    Marija Juric Zagorka - IZMIJENJENO 3 (ISBN: 333)    <- promijenjeno
+
+  O: nadjiKnjigu1 vraca KOPIJU (mijenjali smo kopiju). nadjiKnjigu2
+     (pokazivac) i nadjiKnjigu3 (referenca) daju pristup ORIGINALU.
+
+P29: Sto ako u main maknemo & kod nadjiKnjigu3?
+
+    ORIGINAL:  Knjiga& ref = k.nadjiKnjigu3("333");
+    PROMJENA:  Knjiga  ref = k.nadjiKnjigu3("333");
+
+  O: [RADI DRUKCIJE] - ref je sad KOPIJA. Izmjena se NE vidi u
+     knjiznici, a na kraju programa ispise se jedan destruktor vise.
+
+P30: Sto ako nadjiKnjigu1 promijenimo da vraca referencu?
+
+    Knjiga& nadjiKnjigu1(string isbn) { ... }
+    U main:  Knjiga kopija = k.nadjiKnjigu1("111");
+
+  O: [NE KOMPAJLIRA] - zadnji red  return Knjiga("", "", "");  vraca
+     privremeni objekt, a na njega se ne smije vratiti referenca.
+     (Uz to, u main je  Knjiga kopija = ...  i dalje kopija.)
+
+P31: Sto ako nadjiKnjigu2 vrati adresu lokalne varijable?
+
+    Knjiga* nadjiKnjigu2(string isbn) {
+        Knjiga t = knjige[0];
+        return &t;
+    }
+
+  O: [UB] - kompajler upozori. t nestaje na kraju funkcije, pokazivac
+     pokazuje na obrisanu memoriju (viseci pokazivac).
+
+P32: Sto ako trazimo ISBN koji ne postoji, bez provjere?
+
+    Knjiga* pok = k.nadjiKnjigu2("999");
+    pok->naslov = "x";
+
+  O: [RUSI SE] - pok je nullptr. Uvijek provjeri  if (pok != nullptr).
+
+P33: Sto ako pozovemo k.nadjiKnjigu3("999")?
+
+  O: [PREKID PROGRAMA] - baci se iznimka koju nitko ne hvata.
+     Referenca ne moze biti "prazna" pa ne mozemo vratiti nista.
+
+P34: Sto vraca k.nadjiKnjigu1("999")?
+
+  O: [RADI] - vraca "praznu" knjigu Knjiga("", "", ""), pa se ispise
+     "Knjiga constructor called".
+
+P35: Sto ako dohvatimo pokazivac, pa dodamo nove knjige, pa ga koristimo?
+
+    Knjiga* pok = k.nadjiKnjigu2("222");
+    k.dodajKnjigu2(a);
+    pok->naslov = "x";
+
+  O: [UB] - vector se mozda prosirio i premjestio knjige; pok pokazuje
+     na staru, obrisanu memoriju. Isto vrijedi i za referencu.
+
+P36: Sto ako umjesto pok->naslov napisemo pok.naslov?
+
+  O: [NE KOMPAJLIRA] - pok je pokazivac; koristi se -> ili (*pok).naslov
+
+---------------------------------------------------------------------
+F) const METODE (cesta trik pitanja)
+---------------------------------------------------------------------
+
+P37: Sto ako ispisSvihKnjiga oznacimo kao const?
+
+    void ispisSvihKnjiga() const { ... knjige[i].ispis(); ... }
+
+  O: [NE KOMPAJLIRA] - u const metodi su i knjige const, a ispis() u
+     klasi Knjiga NIJE const metoda. Popravak:  void ispis() const
+
+P38: Sto ako napravimo const knjiznicu i pozovemo getter?
+
+    const Knjiznica k("Ilica 1", "Gradska", "opcenito");
+    cout << k.getNaziv();
+
+  O: [NE KOMPAJLIRA] - na const objektu smiju se zvati samo const
+     metode. Popravak:  string getNaziv() const { return naziv; }
+
+P39: Sto ako setter oznacimo kao const?
+
+    void setNaziv(string _naziv) const { ... naziv = _naziv; ... }
+
+  O: [NE KOMPAJLIRA] - const metoda ne smije mijenjati polja objekta.
+
+
+#####################################################################
+                        ZADATAK 2 - PIJESAK
+#####################################################################
+
+---------------------------------------------------------------------
+G) DINAMICKA MEMORIJA I DESTRUKTOR
+---------------------------------------------------------------------
+
+P40: Sto ako ostavimo  Zrno zrno;  (bez zvjezdice)?
+
+    Zrno zrno;
+    ...
+    zrno = new Zrno[kolicina];
+
+  O: [NE KOMPAJLIRA] - new Zrno[...] vraca Zrno* (adresu), a to se ne
+     moze spremiti u obican Zrno.
+
+P41: Sto ako obrisemo destruktor?
+
+  O: [RADI] - ali CURENJE MEMORIJE: polja alocirana s new[] nikad se ne
+     oslobode (milijuni zrna ostaju zauzeti do kraja programa).
+
+P42: Sto ako u destruktoru napisemo delete umjesto delete[]?
+
+    ~Pijesak() { delete zrno; }
+
+  O: [UB] - new[] mora ici s delete[]. delete ne zna da je polje i ne
+     pozove destruktor za svaki element.
+
+P43: Sto ako u konstruktoru izbacimo petlju koja postavlja zrna?
+
+    Pijesak(int _kolicina) : kolicina(_kolicina) {
+        zrno = new Zrno[kolicina];
+    }
+
+  O: [RADI] - boja je prazan string (string ima svoj konstruktor), ali
+     promjer ima NASUMICNU vrijednost (float nije inicijaliziran).
+
+---------------------------------------------------------------------
+H) KONSTRUKTOR KOPIRANJA
+---------------------------------------------------------------------
+
+P44: Sto ako maknemo const iz konstruktora kopiranja?
+
+    ORIGINAL:  Pijesak(const Pijesak& drugi)
+    PROMJENA:  Pijesak(Pijesak& drugi)
+
+  O: [RADI] - isti ispis. Ali vise ne mozemo kopirati const objekt ni
+     privremeni objekt. const obecava da izvor necemo mijenjati.
+
+P45: Sto ako maknemo & iz konstruktora kopiranja?
+
+    Pijesak(Pijesak drugi)
+
+  O: [NE KOMPAJLIRA] - "invalid constructor; you probably meant
+     'Pijesak (const Pijesak&)'". Predaja po vrijednosti trazi kopiju,
+     a za kopiju treba konstruktor kopiranja -> beskonacna rekurzija.
+
+P46: Sto ako obrisemo konstruktor kopiranja, a move ostavimo?
+
+    Pijesak plaza(igraliste);
+
+  O: [NE KOMPAJLIRA] - "use of deleted function Pijesak(const Pijesak&)".
+     Ako napisemo svoje move funkcije, kompajler NE generira kopirajuce.
+
+P47: Sto ako u konstruktoru kopiranja samo kopiramo pokazivac?
+
+    Pijesak(const Pijesak& drugi) : kolicina(drugi.kolicina) {
+        zrno = drugi.zrno;            // PLITKA kopija
+    }
+
+  O: [RUSI SE] - igraliste i plaza pokazuju na ISTO polje. Na kraju
+     programa oba destruktora rade delete[] na istoj memoriji
+     (double free). Uz to, izmjena zrna u jednom vidi se u drugom.
+
+P48: Sto ako obrisemo SVE cetiri funkcije (ostane samo destruktor)?
+
+  O: [RUSI SE] - kompajler generira kopiranje koje radi PLITKU kopiju.
+     Isproban ispis: nakon prvog "Destruktor (1000000)" program pukne
+     (double free). Move se tada takodjer ponasa kao plitko kopiranje
+     (plaza ostane 1000000).
+
+P49: Kada se poziva konstruktor kopiranja, a kada operator=?
+
+    Pijesak b(a);       konstruktor kopiranja   (b nastaje)
+    Pijesak b = a;      konstruktor kopiranja   (b nastaje - NIJE operator=!)
+    b = a;              operator= kopiranjem    (b vec postoji)
+
+---------------------------------------------------------------------
+I) OPERATOR PRIDRUZIVANJA KOPIRANJEM
+---------------------------------------------------------------------
+
+P50: Sto ako maknemo  delete[] zrno;  iz operator=?
+
+    Pijesak& operator=(const Pijesak& drugi) {
+        if (this != &drugi) {
+            kolicina = drugi.kolicina;
+            zrno = new Zrno[kolicina];      // staro polje izgubljeno
+            ...
+
+  O: [RADI] - isti ispis, ali CURENJE MEMORIJE: staro polje kante (10
+     zrna) nitko ne obrise jer smo izgubili njegovu adresu.
+
+P51: Sto ako maknemo  if (this != &drugi)  i napisemo  kanta = kanta; ?
+
+  O: [UB] - objekt prvo obrise svoje polje (delete[]), alocira novo i
+     kopira iz STAROG, vec obrisanog polja.
+
+P52: Sto ako operator= vraca Pijesak umjesto Pijesak&?
+
+    Pijesak operator=(const Pijesak& drugi) { ... return *this; }
+
+  O: [RADI DRUKCIJE] - isproban ispis nakon  kanta = igraliste; :
+        Operator pridruzivanja kopiranjem
+        Konstruktor kopiranja         <- *this se kopira u povratnu vrijednost
+        Destruktor (1000000)          <- ta kopija se odmah unisti
+     Nepotrebno se kopira milijun zrna.
+
+P53: Sto ako operator= vraca void?
+
+    void operator=(const Pijesak& drugi) { ... }    (bez return)
+
+    kanta = igraliste;        // radi
+    a = b = c;                // NE kompajlira
+
+  O: [DJELOMICNO] - obicno pridruzivanje radi, ulancano ne:
+     "no match for operator= (operand types are 'Pijesak' and 'void')".
+
+P54: Sto ako zaboravimo  return *this;  (a povratni tip je Pijesak&)?
+
+  O: [UB] - kompajler samo upozori ("no return statement in function
+     returning non-void"). Kod isprobavanja program se SRUSIO.
+
+P55: Sto je this, a sto *this?
+
+  O: this = pokazivac na trenutni objekt (adresa).
+     *this = sam objekt. Vracamo *this kao referencu (Pijesak&).
+
+---------------------------------------------------------------------
+J) SEMANTIKA PRIJENOSA (MOVE)
+---------------------------------------------------------------------
+
+P56: Sto ako konstruktoru prijenosa dodamo const?
+
+    Pijesak(const Pijesak&& drugi) : ... {
+        drugi.kolicina = 0;
+        drugi.zrno = nullptr;
+    }
+
+  O: [NE KOMPAJLIRA] - "assignment of member in read-only object".
+     Kod prijenosa izvor MORAMO mijenjati (prazniti).
+
+P57: Sto ako obrisemo konstruktor prijenosa?
+
+    Pijesak kamion(move(plaza));
+
+  O: [RADI DRUKCIJE] - poziva se KONSTRUKTOR KOPIRANJA (const Pijesak&
+     se moze vezati i na rvalue). Isproban ispis:
+        Konstruktor kopiranja
+        kamion: 1000000, plaza: 1000000     <- plaza NIJE ispraznjena
+     Sporije, kopira se milijun zrna.
+
+P58: Sto ako obrisemo operator= prijenosom?
+
+    vrecica = move(kanta);
+
+  O: [RADI DRUKCIJE] - poziva se operator= KOPIRANJEM. kanta ostaje
+     puna (1000000).
+
+P59: Sto ako u konstruktoru prijenosa maknemo  drugi.zrno = nullptr; ?
+
+  O: [RUSI SE] - plaza i kamion pokazuju na isto polje. Na kraju
+     programa oba destruktora ga brisu (double free). Isprobano:
+     program pukne nakon treceg destruktora.
+
+P60: Sto ako u operator= prijenosom maknemo  delete[] zrno; ?
+
+  O: [RADI] - ali CURENJE MEMORIJE: staro polje vrecice (5 zrna) se
+     nikad ne obrise.
+
+P61: Sto ako maknemo move?
+
+    ORIGINAL:  Pijesak kamion(move(plaza));
+    PROMJENA:  Pijesak kamion(plaza);
+
+  O: [RADI DRUKCIJE] - poziva se KOPIRANJE jer plaza ima ime (lvalue).
+     plaza ostaje 1000000.
+
+P62: Sto ako napravimo move na const objektu?
+
+    const Pijesak cp(5);
+    Pijesak kamion(move(cp));
+
+  O: [RADI DRUKCIJE] - poziva se KOPIRANJE (isprobano). Const objekt se
+     ne smije prazniti, pa se Pijesak&& ne moze vezati na njega.
+
+P63: Sto ako nakon move koristimo izvorni objekt?
+
+    Pijesak kamion(move(plaza));
+    cout << plaza.zrno[0].boja;
+
+  O: [RUSI SE] - plaza.zrno je nullptr. Nakon move objekt se smije samo
+     unistiti ili mu dodijeliti nova vrijednost.
+
+P64: Sto ako pridruzimo privremeni objekt?
+
+    kanta = Pijesak(3);
+
+  O: [RADI] - ispis:
+        Obicni konstruktor (3)
+        Operator pridruzivanja prijenosom   <- privremeni objekt je rvalue
+        Destruktor (0)                      <- ispraznjeni privremeni objekt
+
+P65: Sto ako obrisemo #include <utility>?
+
+  O: Na nasem kompajleru [RADI] jer ga <iostream> neizravno ukljuci, ali
+     to nije zajamceno - move je sluzbeno u <utility>, pa ga treba
+     ukljuciti.
+
+P66: Zasto se na kraju main ispisuju destruktori (0)?
+
+    Destruktor (1000000)   vrecica
+    Destruktor (0)         kanta     <- ispraznjena s move
+    Destruktor (1000000)   kamion
+    Destruktor (0)         plaza     <- ispraznjena s move
+    Destruktor (1000000)   igraliste
+
+  O: Obrnuti redoslijed od stvaranja; plaza i kanta su "ispraznjene"
+     prijenosom, a delete[] na nullptr je siguran.
+
+
+#####################################################################
+                  BRZI PREGLED - STO SE POZIVA
+#####################################################################
+  Pijesak b(a);            konstruktor kopiranja
+  Pijesak b = a;           konstruktor kopiranja
+  Pijesak b(move(a));      konstruktor prijenosa
+  Pijesak b = move(a);     konstruktor prijenosa
+  b = a;                   operator= kopiranjem
+  b = move(a);             operator= prijenosom
+  b = Pijesak(3);          operator= prijenosom (privremeni objekt)
+  f(a)   za f(Pijesak x)   konstruktor kopiranja
+  f(a)   za f(Pijesak& x)  nista (referenca)
+  f(&a)  za f(Pijesak* x)  nista (kopira se samo adresa)
+
+  const - PRAVILO:
+  const Tip& x   -> ne mijenjam x; prima i privremene i const objekte
+  Tip& x         -> mogu mijenjati x; NE prima privremene objekte
+  Tip&& x        -> privremeni objekt; smijem ga isprazniti (NE stavljati const)
+  void f() const -> metoda ne mijenja objekt; jedina koja se smije
+                    zvati na const objektu
+=====================================================================
