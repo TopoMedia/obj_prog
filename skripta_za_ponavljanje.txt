@@ -1,0 +1,431 @@
+=====================================================================
+        SKRIPTA ZA PONAVLJANJE - OBJEKTNO PROGRAMIRANJE (C++)
+        (gradivo koristeno u zadatku 1 i zadatku 2)
+=====================================================================
+
+SADRZAJ
+  1. Klasa i objekt
+  2. Specifikatori pristupa (public / private) i enkapsulacija
+  3. Konstruktor i inicijalizacijska lista
+  4. Getteri i setteri - gdje se rade provjere
+  5. Destruktor
+  6. vector
+  7. Prijenos parametara: vrijednost / referenca / pokazivac
+  8. Vracanje iz funkcije: vrijednost / referenca / pokazivac
+  9. Konstruktor kopiranja (i zasto ima vise destruktora)
+ 10. Dinamicka memorija: new / delete / delete[]
+ 11. Plitka i duboka kopija
+ 12. Operator pridruzivanja kopiranjem
+ 13. Semantika prijenosa (move): && i std::move
+ 14. Pravilo tri / pet / nula
+ 15. Alternative (druge funkcije i nacini za isto)
+ 16. Cesta pitanja na ispitu - kratki odgovori
+ 17. Ceste greske
+
+
+---------------------------------------------------------------------
+1. KLASA I OBJEKT
+---------------------------------------------------------------------
+- KLASA je "nacrt" (tip podatka) - opisuje koja polja (podatke) i
+  metode (funkcije) objekt ima.
+- OBJEKT je konkretna instanca klase u memoriji.
+
+    class Knjiga {          // klasa
+    public:
+        string naslov;      // polje (atribut, clan)
+        void ispis();       // metoda (funkcija clanica)
+    };                      // <- tocka-zarez je OBAVEZNA
+
+    Knjiga a("Autor", "Naslov", "111");   // objekt a
+
+- Pristup clanu: preko objekta tockom  ->  a.naslov
+                 preko pokazivaca strelicom -> p->naslov  (isto kao (*p).naslov)
+
+- class vs struct: jedina razlika je da su u class clanovi po defaultu
+  private, a u struct public.
+
+
+---------------------------------------------------------------------
+2. SPECIFIKATORI PRISTUPA I ENKAPSULACIJA
+---------------------------------------------------------------------
+- public:   dostupno svima (i izvan klase, npr. u main)
+- private:  dostupno samo unutar metoda te klase
+- (protected: kao private, ali dostupno i izvedenim klasama - nasljedivanje)
+
+- ENKAPSULACIJA = skrivanje podataka (private) + pristup samo preko
+  javnih metoda (getteri/setteri). Tako klasa sama brine da su podaci
+  uvijek ispravni (npr. kategorija smije biti samo jedna od 4 vrijednosti).
+
+  PITANJE: Zasto su polja Knjiznice private?
+  ODGOVOR: Da ih korisnik ne moze postaviti na neispravnu vrijednost
+           zaobilazeci provjere - mora proci kroz setter.
+
+
+---------------------------------------------------------------------
+3. KONSTRUKTOR I INICIJALIZACIJSKA LISTA
+---------------------------------------------------------------------
+- Posebna metoda koja se poziva AUTOMATSKI pri stvaranju objekta.
+- Isto ime kao klasa, NEMA povratni tip (ni void).
+- Moze ih biti vise (preopterecenje) - razlikuju se po parametrima.
+- Ako ne napisemo nijedan konstruktor, kompajler generira prazni
+  (defaultni) konstruktor. Cim napisemo bilo koji, defaultni NESTAJE.
+  (Zato Knjiga u zad. 1 nema konstruktor bez parametara -
+   "Knjiga x;" se NE bi kompajliralo.)
+
+- Inicijalizacijska lista (iza dvotocke):
+    Knjiga(string _a, string _n) : autor(_a), naslov(_n) { ... }
+  Polja se postavljaju PRIJE ulaska u tijelo konstruktora.
+  Alternativa (radi isto, ali polje se prvo stvori prazno pa se prepise):
+    Knjiga(string _a, string _n) { autor = _a; naslov = _n; }
+  Inicijalizacijska lista je OBAVEZNA za: const polja, reference kao polja,
+  polja ciji tip nema defaultni konstruktor.
+
+
+---------------------------------------------------------------------
+4. GETTERI I SETTERI - GDJE SE RADE PROVJERE ("Gdje?" iz zadatka)
+---------------------------------------------------------------------
+- getter: vraca vrijednost private polja     string getNaziv() { return naziv; }
+- setter: postavlja vrijednost uz PROVJERU   void setNaziv(string n) { if(...) naziv = n; }
+
+- Provjere pravila se rade u SETTERIMA, a KONSTRUKTOR poziva settere.
+  Tako je pravilo napisano na samo jednom mjestu i vrijedi i kod
+  stvaranja objekta i kod kasnije izmjene.
+
+- Provjera velikog slova:   naziv.length() > 0 && isupper(naziv[0])
+  (isupper je iz <cctype>; uvijek prvo provjeri da string nije prazan,
+   inace naziv[0] ne postoji)
+- Provjera dopustenih vrijednosti: k == "djecja" || k == "znanstvena" || ...
+
+- Sto napraviti kad vrijednost nije ispravna? Mogucnosti:
+   a) ispisati poruku i ne promijeniti polje  (koristeno u rjesenju)
+   b) vratiti bool (true = uspjelo, false = nije)
+   c) baciti iznimku (throw) - prekida rad ako se ne uhvati (try/catch)
+
+
+---------------------------------------------------------------------
+5. DESTRUKTOR
+---------------------------------------------------------------------
+- Poziva se AUTOMATSKI kad objekt prestaje postojati:
+    * lokalna varijabla - na kraju bloka { } u kojem je nastala
+    * parametar po vrijednosti - na kraju funkcije
+    * privremeni objekt - na kraju izraza
+    * objekt stvoren s new - tek kad pozovemo delete
+    * element vectora - kad se vector unisti ili premjesta elemente
+- Ime: ~ImeKlase(), nema parametre ni povratni tip, SAMO JEDAN po klasi.
+- Objekti se unistavaju OBRNUTIM redom od stvaranja.
+- Sluzi za oslobadjanje resursa (npr. delete[] dinamickog polja).
+
+
+---------------------------------------------------------------------
+6. VECTOR  (#include <vector>)
+---------------------------------------------------------------------
+- Dinamicko polje koje samo raste.
+    vector<Knjiga> knjige;
+    knjige.push_back(k);      // dodaje KOPIJU od k na kraj
+    knjige.size();            // broj elemenata
+    knjige[i];                // i-ti element (bez provjere granica)
+    knjige.at(i);             // i-ti element (s provjerom - baca iznimku)
+    knjige.back();            // zadnji element
+    knjige.pop_back();        // brise zadnji element
+    knjige.clear();           // brise sve
+
+- VAZNO (objasnjava "visak" destruktora u zadatku 1):
+  vector ima kapacitet. Kad se napuni, alocira VECU memoriju, KOPIRA
+  sve stare elemente u nju i UNISTI stare -> pozivaju se destruktori.
+  Kapacitet: 1 -> 2 -> 4 -> 8 ...
+  Zato i dodajKnjigu2 i dodajKnjigu3 ispisu "destructor called".
+- Posljedica: pokazivac/referenca na element vectora postaje NEVAZECI
+  nakon sto se doda novi element (element je mozda premjesten).
+
+
+---------------------------------------------------------------------
+7. PRIJENOS PARAMETARA U FUNKCIJU
+---------------------------------------------------------------------
+ a) PO VRIJEDNOSTI         void f(Knjiga z)
+    - z je NOVA KOPIJA (poziva se konstruktor kopiranja)
+    - promjena z NE mijenja original
+    - na kraju funkcije z se unistava (destruktor)
+    - poziv: f(a);
+
+ b) PO REFERENCI           void f(Knjiga& z)
+    - z je DRUGO IME za original - nema kopije
+    - promjena z MIJENJA original
+    - poziv: f(a);   (izgleda isto kao po vrijednosti!)
+
+ c) PO CONST REFERENCI     void f(const Knjiga& z)
+    - nema kopije, a original se NE MOZE promijeniti
+    - najcesci izbor za vece objekte koje samo citamo (string, vector...)
+
+ d) POKAZIVACEM            void f(Knjiga* z)
+    - kopira se samo ADRESA (pokazivac), ne objekt
+    - promjena preko z->polje MIJENJA original
+    - poziv: f(&a);   (& = "adresa od")
+    - moze se predati nullptr -> treba provjeravati
+
+  U kojim slucajevima se stvara NOVI objekt (zadatak 1)?
+   - dodajKnjigu1: 2 nova objekta (kopija u parametru + kopija u vectoru)
+   - dodajKnjigu2: 1 novi objekt (samo kopija u vectoru)
+   - dodajKnjigu3: 1 novi objekt (samo kopija u vectoru)
+   (+ kopije koje vector radi kad se prosiruje)
+
+
+---------------------------------------------------------------------
+8. VRACANJE IZ FUNKCIJE
+---------------------------------------------------------------------
+ a) Knjiga  f()   - vraca KOPIJU. Izmjena kopije ne mijenja original.
+                    (nadjiKnjigu1 -> knjiga u knjiznici ostaje ista)
+ b) Knjiga* f()   - vraca ADRESU originala. Moze vratiti nullptr
+                    ("nije pronadjeno"). Izmjena p->polje mijenja original.
+ c) Knjiga& f()   - vraca REFERENCU na original. Izmjena mijenja original.
+                    Ne moze biti "prazna" -> ako nema rezultata, nesto
+                    ipak mora vratiti (zato throw u rjesenju).
+    PAZI: Knjiga& ref = k.nadjiKnjigu3(..);  -> ref je referenca (original)
+          Knjiga  x   = k.nadjiKnjigu3(..);  -> x je KOPIJA (izmjena x ne
+                                                 mijenja original!)
+
+  NIKAD ne vracaj referencu ili pokazivac na LOKALNU varijablu funkcije -
+  ona nestaje na kraju funkcije (visеca referenca -> nedefinirano ponasanje).
+
+
+---------------------------------------------------------------------
+9. KONSTRUKTOR KOPIRANJA
+---------------------------------------------------------------------
+    Klasa(const Klasa& drugi)
+- Stvara NOVI objekt kao kopiju postojeceg.
+- Poziva se kod:
+    Klasa b(a);          Klasa b = a;      (inicijalizacija, NE pridruzivanje!)
+    f(a)  gdje je f(Klasa x)               (prijenos po vrijednosti)
+    return obj;   (vracanje po vrijednosti - kompajler to cesto izbjegne)
+    push_back(a), prosirenje vectora
+- Ako ga ne napisemo, kompajler generira svoj (kopira polje po polje)
+  i on NISTA NE ISPISUJE.
+
+  PITANJE: Zasto se destruktor ispisuje vise puta nego konstruktor?
+  ODGOVOR: Nas konstruktor (koji ispisuje) poziva se samo kad mi stvorimo
+           knjigu. Sve kopije nastaju preko automatski generiranog
+           konstruktora kopiranja koji ne ispisuje nista. A destruktor je
+           samo jedan i poziva se za SVAKI objekt, i za kopije.
+           Rjesenje: napisati vlastiti konstruktor kopiranja s ispisom.
+
+- Zasto parametar mora biti REFERENCA (const Klasa&)?
+  Kad bi bio po vrijednosti, za predaju parametra trebalo bi kopirati
+  objekt -> opet poziv konstruktora kopiranja -> beskonacna rekurzija
+  (kompajler to ni ne dopusta).
+
+
+---------------------------------------------------------------------
+10. DINAMICKA MEMORIJA
+---------------------------------------------------------------------
+    int* p = new int;          delete p;      // jedan objekt
+    Zrno* z = new Zrno[n];     delete[] z;    // polje objekata
+- new zauzima memoriju na HEAPU i vraca adresu (pokazivac).
+- Memoriju MORAMO sami osloboditi, inace curenje memorije (memory leak).
+- new  <-> delete,   new[] <-> delete[]   (NE mijesati!)
+- delete na nullptr je siguran (ne radi nista).
+- Nakon delete pokazivac i dalje sadrzi staru adresu - ne smije se
+  koristiti (dangling pointer) -> zato ga postavljamo na nullptr.
+- Stack (lokalne varijable) - automatski se brise.
+  Heap (new) - brisemo sami.
+
+
+---------------------------------------------------------------------
+11. PLITKA I DUBOKA KOPIJA
+---------------------------------------------------------------------
+- PLITKA kopija: kopira se samo pokazivac -> oba objekta pokazuju na
+  ISTO polje. To radi automatski generirani konstruktor kopiranja.
+  Problem: oba destruktora rade delete[] na istoj memoriji -> pad
+  programa (double free); izmjena kroz jedan objekt vidi se u drugom.
+- DUBOKA kopija: alocira se NOVO polje i kopiraju se elementi.
+  Zato za klasu s new (Pijesak) MORAMO napisati vlastiti konstruktor
+  kopiranja i operator pridruzivanja.
+
+
+---------------------------------------------------------------------
+12. OPERATOR PRIDRUZIVANJA KOPIRANJEM
+---------------------------------------------------------------------
+    Klasa& operator=(const Klasa& drugi) {
+        if (this != &drugi) {     // 1. zastita od a = a
+            delete[] polje;       // 2. oslobodi STARU memoriju
+            ... alociraj novo, kopiraj ...   // 3. duboka kopija
+        }
+        return *this;             // 4. vrati sebe (omogucuje a = b = c)
+    }
+- Poziva se kad OBA objekta VEC POSTOJE:   a = b;
+- Razlika od konstruktora kopiranja:
+     Klasa b = a;   -> KONSTRUKTOR kopiranja (b tek nastaje)
+     b = a;         -> OPERATOR pridruzivanja (b vec postoji)
+- this = pokazivac na trenutni objekt;  *this = sam objekt.
+- Zasto delete[] stare memorije? Objekt vec ima svoje polje; da ga ne
+  obrisemo, nastalo bi curenje memorije.
+- Zasto provjera this != &drugi? Kod a = a bi prvo obrisali vlastito
+  polje pa bi kopirali iz obrisane memorije.
+
+
+---------------------------------------------------------------------
+13. SEMANTIKA PRIJENOSA (MOVE)  - #include <utility>
+---------------------------------------------------------------------
+- lvalue = ima ime i adresu (varijabla).   rvalue = privremena vrijednost.
+- Klasa&& = rvalue referenca - vezuje se na privremene objekte ili na
+  objekte oznacene s std::move.
+- std::move(x) NE premjesta nista sam - samo "oznaci" x kao rvalue da bi
+  se pozvao move konstruktor / move operator.
+- Ideja: umjesto kopiranja milijun zrna, PREUZMI pokazivac od izvora,
+  a izvor "isprazni" (nullptr, kolicina 0). Puno brze.
+
+    Klasa(Klasa&& drugi) : polje(drugi.polje), n(drugi.n) {   // move konstruktor
+        drugi.polje = nullptr;  drugi.n = 0;
+    }
+    Klasa& operator=(Klasa&& drugi) {                          // move operator=
+        if (this != &drugi) {
+            delete[] polje;            // oslobodi svoje
+            polje = drugi.polje;       // preuzmi tudje
+            n = drugi.n;
+            drugi.polje = nullptr;     // isprazni izvor
+            drugi.n = 0;
+        }
+        return *this;
+    }
+- ZASTO izvor na nullptr? Jer ce se i njegov destruktor pozvati - da
+  nije nullptr, obrisao bi polje koje sad pripada novom objektu.
+- Nakon move, izvorni objekt smije se samo unistiti ili mu dodijeliti
+  novu vrijednost - ne oslanjati se na njegov sadrzaj.
+- Kada se poziva move (umjesto copy)?
+     Klasa b(move(a));    Klasa b = move(a);     -> move konstruktor
+     b = move(a);         b = Klasa(10);         -> move operator=
+     (Klasa(10) je privremeni objekt = rvalue)
+
+  Pregled - sto se poziva:
+     Klasa b(a);          konstruktor kopiranja
+     Klasa b = a;         konstruktor kopiranja
+     Klasa b(move(a));    konstruktor prijenosa
+     b = a;               operator= kopiranjem
+     b = move(a);         operator= prijenosom
+
+
+---------------------------------------------------------------------
+14. PRAVILO TRI / PET / NULA
+---------------------------------------------------------------------
+- PRAVILO TRI: ako klasa treba vlastiti destruktor (jer upravlja
+  resursom, npr. new[]), onda treba i vlastiti konstruktor kopiranja i
+  operator= kopiranjem.
+- PRAVILO PET: + konstruktor prijenosa i operator= prijenosom.
+- PRAVILO NULA: ako koristimo vector/string umjesto new[], ne treba
+  pisati nista od toga - generirane verzije rade ispravno.
+- Napomena: ako napisemo vlastiti destruktor ili copy funkcije,
+  kompajler NE generira move funkcije (koristi se kopiranje).
+  (Zato vector u zad. 1 kod prosirenja KOPIRA knjige.)
+
+
+---------------------------------------------------------------------
+15. ALTERNATIVE (drugi nacini / funkcije za isto)
+---------------------------------------------------------------------
+ Petlja kroz vector:
+   for (int i = 0; i < v.size(); i++) v[i].ispis();      // s indeksom
+   for (Knjiga& k : v) k.ispis();                         // range-for (referenca, bez kopije)
+   for (Knjiga k : v) k.ispis();                          // range-for s KOPIJOM svake knjige!
+   for (const Knjiga& k : v) ...                          // samo citanje, bez kopije
+
+ Dodavanje u vector:
+   v.push_back(k);                     // kopira gotov objekt
+   v.push_back(move(k));               // premjesta (ako klasa ima move)
+   v.emplace_back("Autor","Naslov","1"); // stvara objekt DIREKTNO u vectoru
+                                          // (pozove se nas konstruktor, nema kopije)
+   v.reserve(10);                      // unaprijed rezervira mjesto ->
+                                       // nema premjestanja/visak destruktora
+
+ Pristup elementu:   v[i]  (brzo, bez provjere)   /   v.at(i) (s provjerom)
+
+ Provjera velikog slova:
+   isupper(s[0])                        // <cctype>
+   s[0] >= 'A' && s[0] <= 'Z'           // rucno, radi samo za engleska slova
+
+ Usporedba stringova:  s == "djecja"    ili   s.compare("djecja") == 0
+
+ Pokazivac "nista":    nullptr  (moderno)   /   NULL ili 0 (staro, izbjegavati)
+
+ Pristup preko pokazivaca:  p->naslov   ==   (*p).naslov
+
+ "Nije pronadjeno" kod trazenja:
+   pokazivac -> vrati nullptr
+   referenca -> baci iznimku (throw) ili koristi pokazivac
+   vrijednost -> vrati "praznu"/posebnu vrijednost
+
+ Dinamicko polje:    new Zrno[n] + delete[]   ->  alternativa: vector<Zrno>
+                     (onda ne treba ni destruktor ni copy/move - pravilo nula)
+
+ Move bez rucnog nullptr:  std::swap(a, b)  ili  std::exchange(p, nullptr)
+
+ Zabrana kopiranja:  Klasa(const Klasa&) = delete;
+ Trazenje defaultne verzije:  Klasa(const Klasa&) = default;
+
+
+---------------------------------------------------------------------
+16. CESTA PITANJA - KRATKI ODGOVORI
+---------------------------------------------------------------------
+P: Gdje se rade provjere pravila u klasi Knjiznica?
+O: U setterima; konstruktor poziva settere. Polja su private pa se ne
+   mogu zaobici.
+
+P: Sto se ispisuje kod dodajKnjigu1/2/3?
+O: Konstruktor se NE ispisuje (kopije rade generirani konstruktor
+   kopiranja). Kod 1 se ispise destruktor lokalne kopije z. Kod 2 i 3
+   destruktor se ispise samo zbog prosirenja vectora.
+
+P: U kojim slucajevima se stvara novi objekt?
+O: Kod prijenosa po vrijednosti (parametar), kod push_back (kopija u
+   vectoru), kod prosirenja vectora, kod vracanja po vrijednosti.
+   Referenca i pokazivac NE stvaraju novi objekt.
+
+P: Zasto vise destruktora nego konstruktora?
+O: Kopije stvara konstruktor kopiranja koji ne ispisuje; destruktor se
+   poziva za svaki objekt.
+
+P: Sto zapazate nakon nadjiKnjigu1/2/3 i izmjene?
+O: Izmjena preko nadjiKnjigu1 se ne vidi (izmijenjena je kopija);
+   preko nadjiKnjigu2 i 3 se vidi (mijenja se original).
+
+P: Prednosti/nedostaci nacina?
+O: Vrijednost - sigurno za original, ali sporo (kopija).
+   Referenca - brzo, mijenja original, ne moze biti prazna.
+   const referenca - brzo i sigurno (najbolje za citanje velikih objekata).
+   Pokazivac - brzo, moze biti nullptr (dobro za "nije pronadjeno"),
+   ali treba provjeravati i sintaksa je nespretnija.
+
+P: Razlika konstruktor kopiranja vs operator pridruzivanja?
+O: Konstruktor stvara NOVI objekt; operator= mijenja POSTOJECI objekt
+   (zato mora prvo osloboditi staru memoriju i provjeriti a = a).
+
+P: Razlika kopiranje vs prijenos?
+O: Kopiranje radi novo polje i kopira sve elemente (izvor ostaje isti).
+   Prijenos samo preuzme pokazivac, a izvor ostaje prazan - puno brze.
+
+P: Sto radi std::move?
+O: Nista ne premjesta - samo pretvara objekt u rvalue da bi se odabrala
+   move verzija konstruktora/operatora.
+
+P: Zasto u move konstruktoru postavljamo drugi.zrno = nullptr?
+O: Da destruktor izvora ne obrise polje koje je preuzeo novi objekt.
+
+P: Zasto operator= vraca Klasa& i *this?
+O: Da bi radilo ulancano pridruzivanje a = b = c, bez nepotrebne kopije.
+
+P: Zasto delete[] a ne delete?
+O: Jer je polje alocirano s new[]; delete[] pozove destruktor za svaki
+   element i oslobodi cijelo polje.
+
+
+---------------------------------------------------------------------
+17. CESTE GRESKE
+---------------------------------------------------------------------
+- zaboravljena ; nakon } klase
+- new[] obrisan s delete (umjesto delete[]) ili obrnuto
+- zaboravljen delete -> curenje memorije
+- plitka kopija pokazivaca -> dvostruko brisanje
+- u operator= zaboravljena provjera this != &drugi ili delete stare memorije
+- u move funkcijama zaboravljeno postaviti izvor na nullptr
+- vracanje reference/pokazivaca na lokalnu varijablu
+- "Knjiga x = nadjiKnjigu3(..)" umjesto "Knjiga& x = ..." -> dobije se kopija
+- cuvanje pokazivaca na element vectora pa dodavanje novih elemenata
+- s[0] na praznom stringu
+- koristenje objekta nakon std::move kao da ima stare podatke
+=====================================================================
